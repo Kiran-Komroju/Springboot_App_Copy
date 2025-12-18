@@ -1,0 +1,72 @@
+Command history — actions I ran while diagnosing and fixing the build (chronological):
+
+1) Attempt to build (failed due to Java 11):
+   mvn -DskipTests package
+
+2) Tried to install JDK 17 (permission denied in container):
+   apt-get update && apt-get install -y openjdk-17-jdk && export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && export PATH="$JAVA_HOME/bin:$PATH" && java -version && mvn -DskipTests package
+
+3) Checked installed JDKs:
+   ls -la /usr/lib/jvm || true
+
+4) Set JAVA_HOME to existing Java 17 and rebuilt (succeeded):
+   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && export PATH="$JAVA_HOME/bin:$PATH" && java -version && mvn -DskipTests package
+
+5) Start the Spring Boot jar in background and write logs:
+   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && export PATH="$JAVA_HOME/bin:$PATH" && nohup java -jar target/demo-0.0.1-SNAPSHOT.jar > target/app.log 2>&1 & echo $!
+
+6) Quick check of root endpoint (after start):
+   sleep 2 && curl -sS -D - http://localhost:8080/ || true
+
+7) View application startup logs:
+   tail -n 200 target/app.log || true
+
+8) Stop the running Spring Boot process (search and kill by jar name):
+   pids=$(pgrep -f 'demo-0.0.1-SNAPSHOT.jar' || true)
+   if [ -n "$pids" ]; then
+     echo "Found PIDs: $pids"
+     for p in $pids; do
+       kill $p || true
+     done
+     sleep 2
+     for p in $pids; do
+       if kill -0 $p 2>/dev/null; then
+         echo "PID $p still alive — force killing"
+         kill -9 $p || true
+       fi
+     done
+     echo "Final process check:"
+     ps -ef | grep demo-0.0.1-SNAPSHOT.jar | grep -v grep || echo "no running process"
+   else
+     echo "No running Spring Boot process found"
+   fi
+
+9) Verify endpoint is down (after stop):
+   curl -sS -D - http://localhost:8080/ || true
+
+10) Inspect shutdown logs:
+   tail -n 200 target/app.log || true
+
+Additional repo/file-related commands I suggested (not necessarily executed):
+- Show the pom diff:
+   git --no-pager diff -- pom.xml
+
+- View the modified pom:
+   sed -n '1,240p' pom.xml
+
+- Commit the pom change suggestion:
+   git add pom.xml
+   git commit -m "Replace incorrect Spring Boot starters with spring-boot-starter-web and spring-boot-starter-test"
+
+Notes:
+- I also used the workspace file-editing API to update `pom.xml` (replaced dependencies). The precise XML patch is recorded in the repo change history and can be inspected with the `git diff` command above.
+- Some attempted commands (like `apt-get install`) failed due to permission; I left them in this history for completeness.
+
+File location:
+- /workspaces/Springboot_App_Copy/COMMAND_HISTORY.txt
+
+Next options I can perform for you:
+- Commit the `pom.xml` change and create a Git commit now.
+- Save these commands to another format (markdown), or produce a downloadable patch.
+- Run any of the listed commands again interactively.
+
